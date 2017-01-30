@@ -1,0 +1,54 @@
+statechart:
+  name: Microwave controller
+  description: |
+    in:
+     input_timer_inc
+     input_timer_dec
+     input_timer_reset
+     input_cooking_start
+     timer_tick
+     door_opened
+     door_closed
+
+    out:
+     heating_on
+     heating_off
+     beep(number:int)
+  preamble: |
+      timer = 0
+  root state:
+    name: controller
+    initial: door closed
+    states:
+      - name: door closed
+        transitions: 
+          - event: door_opened
+            target: door opened
+          - event: input_timer_inc
+            action: timer += 1
+          - event: input_timer_dec
+            action: timer -=1
+          - event: input_timer_reset
+            action: timer = 0            
+        initial: program mode
+        states:
+          - name: program mode
+            transitions:
+              - event: input_cooking_start
+                guard: timer > 0
+                target: cooking mode
+          - name: cooking mode
+            on entry: |
+              send('heating_on')
+            transitions: 
+              - guard: timer == 0
+                target: program mode
+                action: |
+                  send('heating_off')
+                  send('beep', number=3)
+              - event: timer_tick
+                action: timer -= 1
+      - name: door opened
+        transitions:
+          - event: door_closed
+            target: door closed
